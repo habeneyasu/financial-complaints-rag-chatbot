@@ -1,0 +1,25 @@
+# Minimal requirements for Financial Complaints RAG Challenge
+
+# Data & Analysis
+pandas==2.2.0
+numpy==1.26.4
+matplotlib==3.8.3
+
+# NLP & RAG
+langchain==0.1.10
+sentence-transformers==2.2.2
+chromadb==0.4.22
+nltk==3.8.1
+
+# LLM
+transformers==4.38.2
+torch==2.2.0
+llama-cpp-python==0.2.56
+
+# UI (Required)
+gradio==4.18.0
+
+# Utilities
+python-dotenv==1.0.1
+tqdm==4.66.2
+pyarrow==15.0.0
