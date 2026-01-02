@@ -4,6 +4,7 @@
 pandas==2.2.0
 numpy==1.26.4
 matplotlib==3.8.3
+seaborn==0.13.2
 
 # NLP & RAG
 langchain==0.1.10
