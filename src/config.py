@@ -86,12 +86,33 @@ class ChunkingConfig:
 
 
 @dataclass
+class EmbeddingConfig:
+    """Configuration for embedding generation."""
+    
+    model_name: str = os.getenv(
+        "EMBEDDING_MODEL",
+        "sentence-transformers/all-MiniLM-L6-v2"
+    )
+    batch_size: int = int(os.getenv("EMBEDDING_BATCH_SIZE", "32"))
+    normalize_embeddings: bool = os.getenv(
+        "NORMALIZE_EMBEDDINGS", "true"
+    ).lower() == "true"
+    device: Optional[str] = os.getenv("EMBEDDING_DEVICE", None)
+    
+    def __post_init__(self) -> None:
+        """Validate embedding configuration."""
+        if self.batch_size <= 0:
+            raise ValueError("batch_size must be positive")
+
+
+@dataclass
 class AppConfig:
     """Main application configuration."""
     
     data: DataConfig = None
     logging: LoggingConfig = None
     chunking: ChunkingConfig = None
+    embedding: EmbeddingConfig = None
     
     def __post_init__(self) -> None:
         """Initialize sub-configurations if not provided."""
@@ -101,6 +122,8 @@ class AppConfig:
             self.logging = LoggingConfig()
         if self.chunking is None:
             self.chunking = ChunkingConfig()
+        if self.embedding is None:
+            self.embedding = EmbeddingConfig()
 
 
 # Global configuration instance

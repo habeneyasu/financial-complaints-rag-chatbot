@@ -191,7 +191,8 @@ jupyter lab
 4. `04_clean_text_narratives.ipynb` - Text cleaning for embeddings
 5. `05_stratified_sampling.ipynb` - Create stratified sample (10,000-15,000 complaints) with proportional product representation
 6. `06_text_chunking_experiment.ipynb` - Text chunking strategy experimentation and optimization
-7. `07_embedding_vectorstore.ipynb` - Embedding generation and vector store indexing (Task 2)
+7. `07_embedding_generation.ipynb` - Embedding generation using sentence-transformers
+8. `08_vectorstore_creation.ipynb` - Vector store creation and indexing (Task 2)
 
 ## 📋 Tasks Overview
 
@@ -256,7 +257,8 @@ financial-complaints-rag-chatbot/
 │   ├── 04_clean_text_narratives.ipynb
 │   ├── 05_stratified_sampling.ipynb      # Stratified sampling (10K-15K samples)
 │   ├── 06_text_chunking_experiment.ipynb # Text chunking experimentation
-│   ├── 07_embedding_vectorstore.ipynb    # Task 2: Embedding & vector store
+│   ├── 07_embedding_generation.ipynb     # Embedding generation
+│   ├── 08_vectorstore_creation.ipynb     # Task 2: Vector store creation
 │   └── README.md
 ├── src/                           # Source code
 │   ├── data/                      # Data processing modules
@@ -268,7 +270,8 @@ financial-complaints-rag-chatbot/
 │   │   └── analyzer.py            # EDAAnalyzer class
 │   ├── rag/                       # RAG pipeline modules
 │   │   ├── __init__.py
-│   │   └── chunker.py             # TextChunker class
+│   │   ├── chunker.py             # TextChunker class
+│   │   └── embedder.py            # EmbeddingGenerator class
 │   ├── utils/                     # Utility modules
 │   │   ├── __init__.py
 │   │   └── logger.py              # Logging utilities
@@ -350,7 +353,7 @@ The project follows PEP 8 style guidelines. Consider using:
 
 ### 🚧 In Progress
 - [x] Text chunking strategy implementation and experimentation
-- [ ] Embedding generation pipeline
+- [x] Embedding generation pipeline (sentence-transformers/all-MiniLM-L6-v2)
 - [ ] Vector store creation and persistence (ChromaDB)
 - [ ] Vector indexing and metadata management
 

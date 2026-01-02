@@ -5,6 +5,7 @@ This package contains modules for text chunking, embedding generation, and vecto
 """
 
 from src.rag.chunker import TextChunker
+from src.rag.embedder import EmbeddingGenerator
 
-__all__ = ['TextChunker']
+__all__ = ['TextChunker', 'EmbeddingGenerator']
 
