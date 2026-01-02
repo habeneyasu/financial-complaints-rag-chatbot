@@ -206,20 +206,22 @@ jupyter lab
   - Clean and preprocess complaint narratives
   - Normalize text for embedding generation
 
-### Task 2: Text Chunking, Embedding, and Vector Store Indexing 🚧
+### Task 2: Text Chunking, Embedding, and Vector Store Indexing ✅
 - **Objective**: Convert the cleaned text narratives into a format suitable for efficient semantic search
 - **Prerequisites**: 
   - Stratified sample of 10,000-15,000 complaints (notebook `05_stratified_sampling.ipynb`)
 - **Key Components**:
-  - **Text Chunking**: Split long narratives into appropriately sized chunks for embedding
-  - **Embedding Generation**: Create vector embeddings using sentence transformers
+  - **Text Chunking**: Split long narratives into appropriately sized chunks for embedding (chunk_size=500, overlap=75)
+  - **Embedding Generation**: Create vector embeddings using `sentence-transformers/all-MiniLM-L6-v2` (384 dimensions)
   - **Vector Store Indexing**: Build and persist vector store (ChromaDB) for semantic search
-  - **Metadata Management**: Store relevant complaint metadata alongside embeddings
-- **Expected Deliverables**:
-  - Chunked text data with optimal chunk sizes
-  - Generated embeddings for all complaint narratives
-  - Persisted vector store ready for retrieval
-  - Indexing pipeline for efficient querying
+  - **Metadata Management**: Store relevant complaint metadata alongside embeddings for traceability
+- **Notebooks**: `06_text_chunking_experiment.ipynb`, `07_embedding_generation.ipynb`, `08_vectorstore_creation.ipynb`
+- **Modules**: `src/rag/chunker.py`, `src/rag/embedder.py`, `src/rag/vectorstore.py`
+- **Deliverables**:
+  - ✅ Chunked text data with optimal chunk sizes (500 chars, 15% overlap)
+  - ✅ Generated embeddings for all complaint chunks (384-dimensional vectors)
+  - ✅ Persisted ChromaDB vector store ready for retrieval
+  - ✅ Metadata storage enabling full traceability to source complaints
 
 ### Task 3: RAG Pipeline Implementation (Upcoming)
 - **Objective**: Build the complete Retrieval-Augmented Generation pipeline
@@ -271,7 +273,8 @@ financial-complaints-rag-chatbot/
 │   ├── rag/                       # RAG pipeline modules
 │   │   ├── __init__.py
 │   │   ├── chunker.py             # TextChunker class
-│   │   └── embedder.py            # EmbeddingGenerator class
+│   │   ├── embedder.py            # EmbeddingGenerator class
+│   │   └── vectorstore.py         # VectorStore class (ChromaDB)
 │   ├── utils/                     # Utility modules
 │   │   ├── __init__.py
 │   │   └── logger.py              # Logging utilities
@@ -354,8 +357,8 @@ The project follows PEP 8 style guidelines. Consider using:
 ### 🚧 In Progress
 - [x] Text chunking strategy implementation and experimentation
 - [x] Embedding generation pipeline (sentence-transformers/all-MiniLM-L6-v2)
-- [ ] Vector store creation and persistence (ChromaDB)
-- [ ] Vector indexing and metadata management
+- [x] Vector store creation and persistence (ChromaDB)
+- [x] Vector indexing and metadata management
 
 ### 📅 Planned
 - [ ] RAG pipeline implementation (Task 3)

@@ -106,6 +106,19 @@ class EmbeddingConfig:
 
 
 @dataclass
+class VectorStoreConfig:
+    """Configuration for vector store."""
+    
+    collection_name: str = os.getenv("VECTOR_STORE_COLLECTION", "financial_complaints")
+    batch_size: int = int(os.getenv("VECTOR_STORE_BATCH_SIZE", "100"))
+    
+    def __post_init__(self) -> None:
+        """Validate vector store configuration."""
+        if self.batch_size <= 0:
+            raise ValueError("batch_size must be positive")
+
+
+@dataclass
 class AppConfig:
     """Main application configuration."""
     
@@ -113,6 +126,7 @@ class AppConfig:
     logging: LoggingConfig = None
     chunking: ChunkingConfig = None
     embedding: EmbeddingConfig = None
+    vectorstore: VectorStoreConfig = None
     
     def __post_init__(self) -> None:
         """Initialize sub-configurations if not provided."""
@@ -124,6 +138,8 @@ class AppConfig:
             self.chunking = ChunkingConfig()
         if self.embedding is None:
             self.embedding = EmbeddingConfig()
+        if self.vectorstore is None:
+            self.vectorstore = VectorStoreConfig()
 
 
 # Global configuration instance
