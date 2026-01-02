@@ -189,6 +189,51 @@ jupyter lab
 2. `02_eda_analysis.ipynb` - Exploratory data analysis
 3. `03_filter_dataset.ipynb` - Filter and subset data
 4. `04_clean_text_narratives.ipynb` - Text cleaning for embeddings
+5. `05_stratified_sampling.ipynb` - Create stratified sample (10,000-15,000 complaints) with proportional product representation
+6. `06_text_chunking_embedding.ipynb` - Text chunking, embedding generation, and vector store indexing (Task 2)
+
+## 📋 Tasks Overview
+
+### Task 1: Exploratory Data Analysis and Data Preprocessing ✅
+- **Notebooks**: `01_load_dataset.ipynb`, `02_eda_analysis.ipynb`, `03_filter_dataset.ipynb`, `04_clean_text_narratives.ipynb`
+- **Modules**: `src/data/loader.py`, `src/data/preprocessor.py`, `src/eda/analyzer.py`
+- **Objectives**:
+  - Load CFPB complaint dataset
+  - Perform exploratory data analysis (product distribution, narrative analysis)
+  - Filter and subset data for processing
+  - Clean and preprocess complaint narratives
+  - Normalize text for embedding generation
+
+### Task 2: Text Chunking, Embedding, and Vector Store Indexing 🚧
+- **Objective**: Convert the cleaned text narratives into a format suitable for efficient semantic search
+- **Prerequisites**: 
+  - Stratified sample of 10,000-15,000 complaints (notebook `05_stratified_sampling.ipynb`)
+- **Key Components**:
+  - **Text Chunking**: Split long narratives into appropriately sized chunks for embedding
+  - **Embedding Generation**: Create vector embeddings using sentence transformers
+  - **Vector Store Indexing**: Build and persist vector store (ChromaDB) for semantic search
+  - **Metadata Management**: Store relevant complaint metadata alongside embeddings
+- **Expected Deliverables**:
+  - Chunked text data with optimal chunk sizes
+  - Generated embeddings for all complaint narratives
+  - Persisted vector store ready for retrieval
+  - Indexing pipeline for efficient querying
+
+### Task 3: RAG Pipeline Implementation (Upcoming)
+- **Objective**: Build the complete Retrieval-Augmented Generation pipeline
+- **Key Components**:
+  - Implement retrieval component for semantic search
+  - Integrate with Large Language Model (LLM)
+  - Build query processing and response generation
+  - Implement context management and prompt engineering
+
+### Task 4: Application Development (Upcoming)
+- **Objective**: Create user-friendly interface and deploy the system
+- **Key Components**:
+  - Build Gradio/Streamlit web interface
+  - Implement user interaction flows
+  - Add performance monitoring and evaluation
+  - Deploy and optimize for production
 
 ## 📁 Project Structure
 
@@ -208,6 +253,8 @@ financial-complaints-rag-chatbot/
 │   ├── 02_eda_analysis.ipynb
 │   ├── 03_filter_dataset.ipynb
 │   ├── 04_clean_text_narratives.ipynb
+│   ├── 05_stratified_sampling.ipynb      # Stratified sampling (10K-15K samples)
+│   ├── 06_text_chunking_embedding.ipynb  # Task 2: Text chunking & vector store
 │   └── README.md
 ├── src/                           # Source code
 │   ├── data/                      # Data processing modules
@@ -291,22 +338,26 @@ The project follows PEP 8 style guidelines. Consider using:
 - [x] Exploratory data analysis tools
 - [x] Data preprocessing and cleaning
 - [x] Text normalization for embeddings
+- [x] Stratified sampling (10,000-15,000 complaints with proportional product representation)
 - [x] Modular codebase architecture
 - [x] Configuration management
 - [x] Logging infrastructure
 
 ### 🚧 In Progress
-- [ ] Vector store creation and persistence
-- [ ] RAG pipeline implementation
-- [ ] LLM integration
-- [ ] Gradio interface development
+- [ ] Text chunking strategy implementation
+- [ ] Embedding generation pipeline
+- [ ] Vector store creation and persistence (ChromaDB)
+- [ ] Vector indexing and metadata management
 
 ### 📅 Planned
-- [ ] Model fine-tuning capabilities
-- [ ] Performance optimization
+- [ ] RAG pipeline implementation (Task 3)
+- [ ] Retrieval component development
+- [ ] LLM integration and prompt engineering
+- [ ] Application development with Gradio interface (Task 4)
+- [ ] Performance optimization and evaluation
 - [ ] Deployment configuration
 - [ ] API endpoint development
-- [ ] Comprehensive documentation
+- [ ] Model fine-tuning capabilities
 
 ## 🤝 Contributing
 
