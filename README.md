@@ -135,6 +135,37 @@ python app.py
 
 This will start the Gradio interface, typically accessible at `http://localhost:7860`.
 
+### Running the Complete Pipeline
+
+Execute the complete preprocessing and embedding pipeline:
+
+```bash
+# Run with default configuration
+python -m src.pipeline
+
+# Run with custom parameters
+python -m src.pipeline \
+    --sample-size 12500 \
+    --stratify-column Product \
+    --random-state 42 \
+    --chunk-size 500 \
+    --chunk-overlap 75 \
+    --embedding-model sentence-transformers/all-MiniLM-L6-v2
+
+# Skip stratified sampling (use full filtered dataset)
+python -m src.pipeline --no-sampling
+```
+
+The pipeline integrates:
+1. **Data loading** from raw CSV
+2. **Task 1 filtering** (products + narratives)
+3. **Stratified sampling** (10k-15k with proportional representation)
+4. **Text chunking**
+5. **Embedding generation**
+6. **Vector store creation**
+
+All steps are configurable and reproducible.
+
 ### Using the Code Modules
 
 #### Data Loading and Preprocessing
@@ -147,12 +178,55 @@ from src.data.preprocessor import DataPreprocessor
 loader = DataLoader(data_path="data/raw/complaints.csv")
 df = loader.load_data()
 
-# Preprocess data
-preprocessor = DataPreprocessor(df)
-df_clean = preprocessor.clean_narratives().remove_duplicates().get_data()
+# Task 1: Apply complete filtering workflow (explicit product filtering + narrative removal + EDA)
+preprocessor = DataPreprocessor(df, narrative_col='Consumer complaint narrative')
+task1_results = preprocessor.apply_task1_filtering(
+    target_products=["Credit card", "Personal loan", "Savings account", "Money transfers"],
+    perform_eda=True
+)
+df_filtered = task1_results['filtered_dataframe']
 
-# Save processed data
-preprocessor.save_processed_data("data/processed/complaints_clean.parquet")
+# Save filtered dataset with clear naming
+preprocessor.save_filtered_dataset(
+    filename="task1_filtered_complaints",
+    save_csv=True,
+    save_parquet=True
+)
+```
+
+#### Complete Pipeline with Stratified Sampling
+
+```python
+from src.pipeline import run_complete_pipeline
+
+# Run complete pipeline: filtering -> stratified sampling -> chunking -> embedding -> vector store
+results = run_complete_pipeline(
+    sample_size=12500,  # Stratified sample size (10k-15k range)
+    stratify_column='Product',  # Column for proportional representation
+    random_state=42,  # For reproducibility
+    create_stratified_sample=True,
+    chunk_size=500,
+    chunk_overlap=75
+)
+
+# Or use the preprocessor directly
+from src.data.preprocessor import DataPreprocessor
+preprocessor = DataPreprocessor(df, narrative_col='Consumer complaint narrative')
+
+# Complete pipeline with stratified sampling
+pipeline_results = preprocessor.apply_complete_pipeline(
+    target_products=["Credit card", "Personal loan", "Savings account", "Money transfers"],
+    create_stratified_sample=True,
+    n_samples=12500,
+    perform_eda=True
+)
+
+# Create and save stratified sample separately
+sample_results = preprocessor.create_and_save_stratified_sample(
+    n_samples=12500,
+    stratify_col='Product',
+    random_state=42
+)
 ```
 
 #### Exploratory Data Analysis
@@ -187,7 +261,7 @@ jupyter lab
 **Notebook Sequence:**
 1. `01_load_dataset.ipynb` - Load and validate CFPB dataset
 2. `02_eda_analysis.ipynb` - Exploratory data analysis
-3. `03_filter_dataset.ipynb` - Filter and subset data
+3. `03_filter_dataset.ipynb` - **Task 1 filtering** (explicit product filtering, narrative removal, integrated EDA) → outputs `task1_filtered_complaints.csv`
 4. `04_clean_text_narratives.ipynb` - Text cleaning for embeddings
 5. `05_stratified_sampling.ipynb` - Create stratified sample (10,000-15,000 complaints) with proportional product representation
 6. `06_text_chunking_experiment.ipynb` - Text chunking strategy experimentation and optimization
@@ -202,26 +276,37 @@ jupyter lab
 - **Objectives**:
   - Load CFPB complaint dataset
   - Perform exploratory data analysis (product distribution, narrative analysis)
-  - Filter and subset data for processing
+  - **Explicitly filter** to assignment's specified product set (Credit card, Personal loan, Savings account, Money transfers)
+  - **Explicitly remove** records without Consumer complaint narratives
+  - **Integrated EDA workflow** (distribution, length, missingness) tightly coupled with preprocessing
   - Clean and preprocess complaint narratives
   - Normalize text for embedding generation
+- **Deliverables**:
+  - ✅ Filtered dataset saved as `task1_filtered_complaints.csv` (clearly named)
+  - ✅ EDA analysis integrated with preprocessing pipeline
+  - ✅ Fully reproducible workflow documented in code
 
 ### Task 2: Text Chunking, Embedding, and Vector Store Indexing ✅
 - **Objective**: Convert the cleaned text narratives into a format suitable for efficient semantic search
 - **Prerequisites**: 
-  - Stratified sample of 10,000-15,000 complaints (notebook `05_stratified_sampling.ipynb`)
+  - Stratified sample of 10,000-15,000 complaints with proportional product representation
 - **Key Components**:
+  - **Stratified Sampling**: Executable code (not just notebook) ensuring 10k-15k samples with proportional representation across products
   - **Text Chunking**: Split long narratives into appropriately sized chunks for embedding (chunk_size=500, overlap=75)
   - **Embedding Generation**: Create vector embeddings using `sentence-transformers/all-MiniLM-L6-v2` (384 dimensions)
   - **Vector Store Indexing**: Build and persist vector store (ChromaDB) for semantic search
   - **Metadata Management**: Store relevant complaint metadata alongside embeddings for traceability
-- **Notebooks**: `06_text_chunking_experiment.ipynb`, `07_embedding_generation.ipynb`, `08_vectorstore_creation.ipynb`
-- **Modules**: `src/rag/chunker.py`, `src/rag/embedder.py`, `src/rag/vectorstore.py`
+- **Notebooks**: `05_stratified_sampling.ipynb`, `06_text_chunking_experiment.ipynb`, `07_embedding_generation.ipynb`, `08_vectorstore_creation.ipynb`
+- **Modules**: `src/data/preprocessor.py`, `src/pipeline.py`, `src/rag/chunker.py`, `src/rag/embedder.py`, `src/rag/vectorstore.py`
+- **Executable Pipeline**: `src/pipeline.py` provides complete workflow as executable code
+- **Configuration**: All parameters configurable via `config.py` and environment variables
 - **Deliverables**:
+  - ✅ Stratified sampling as executable code with configurable sample size, product column, and output locations
   - ✅ Chunked text data with optimal chunk sizes (500 chars, 15% overlap)
   - ✅ Generated embeddings for all complaint chunks (384-dimensional vectors)
   - ✅ Persisted ChromaDB vector store ready for retrieval
   - ✅ Metadata storage enabling full traceability to source complaints
+  - ✅ Fully reproducible pipeline for reliable vector store creation
 
 ### Task 3: RAG Pipeline Implementation (Upcoming)
 - **Objective**: Build the complete Retrieval-Augmented Generation pipeline
@@ -346,10 +431,17 @@ The project follows PEP 8 style guidelines. Consider using:
 
 ### ✅ Completed
 - [x] Data loading and validation pipeline
-- [x] Exploratory data analysis tools
+- [x] Exploratory data analysis tools (integrated with preprocessing)
 - [x] Data preprocessing and cleaning
+- [x] **Explicit product filtering** to assignment's specified product set
+- [x] **Explicit narrative removal** (records without narratives filtered in code)
+- [x] **Clear CSV naming** for Task 1 deliverables (`task1_filtered_complaints.csv`)
+- [x] **Reproducible Task 1 workflow** with integrated EDA
+- [x] **Stratified sampling as executable code** (10k-15k with proportional representation)
+- [x] **Configurable sampling** (sample size, product column, output locations)
+- [x] **Complete pipeline integration** (filtering → sampling → embedding → vectorstore)
+- [x] **Executable pipeline script** for reproducible vector store creation
 - [x] Text normalization for embeddings
-- [x] Stratified sampling (10,000-15,000 complaints with proportional product representation)
 - [x] Modular codebase architecture
 - [x] Configuration management
 - [x] Logging infrastructure

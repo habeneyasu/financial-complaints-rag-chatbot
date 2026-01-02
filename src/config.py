@@ -16,6 +16,45 @@ load_dotenv()
 
 
 @dataclass
+class SamplingConfig:
+    """Configuration for stratified sampling."""
+    
+    # Sample size configuration (target range: 10,000-15,000)
+    sample_size: int = int(os.getenv("SAMPLE_SIZE", "12500"))
+    sample_size_min: int = 10000
+    sample_size_max: int = 15000
+    
+    # Stratification configuration
+    stratify_column: str = os.getenv("STRATIFY_COLUMN", "Product")
+    random_state: int = int(os.getenv("RANDOM_STATE", "42"))
+    min_samples_per_stratum: int = int(os.getenv("MIN_SAMPLES_PER_STRATUM", "1"))
+    
+    # Output configuration
+    stratified_sample_filename: str = os.getenv(
+        "STRATIFIED_SAMPLE_FILENAME",
+        "stratified_sample.parquet"
+    )
+    
+    def __post_init__(self) -> None:
+        """Validate sampling configuration."""
+        if not (self.sample_size_min <= self.sample_size <= self.sample_size_max):
+            raise ValueError(
+                f"Sample size {self.sample_size} must be between "
+                f"{self.sample_size_min} and {self.sample_size_max}"
+            )
+        if self.random_state < 0:
+            raise ValueError("random_state must be non-negative")
+        if self.min_samples_per_stratum < 1:
+            raise ValueError("min_samples_per_stratum must be at least 1")
+    
+    @property
+    def stratified_sample_path(self) -> Path:
+        """Get the full path to stratified sample file."""
+        # This will be set by DataConfig
+        return Path("data/processed") / self.stratified_sample_filename
+
+
+@dataclass
 class DataConfig:
     """Configuration for data paths and settings."""
     
@@ -33,7 +72,7 @@ class DataConfig:
     
     # Data processing settings
     chunk_size: int = 10000  # For reading large files in chunks
-    sample_size: Optional[int] = None  # For testing with smaller dataset
+    sample_size: Optional[int] = None  # For testing with smaller dataset (deprecated, use SamplingConfig)
     
     def __post_init__(self) -> None:
         """Ensure directories exist after initialization."""
@@ -50,6 +89,11 @@ class DataConfig:
     def processed_data_path(self) -> Path:
         """Get the full path to processed data file."""
         return self.processed_data_dir / self.processed_filename
+    
+    @property
+    def stratified_sample_path(self) -> Path:
+        """Get the full path to stratified sample file."""
+        return self.processed_data_dir / "stratified_sample.parquet"
 
 
 @dataclass
@@ -127,6 +171,7 @@ class AppConfig:
     chunking: ChunkingConfig = None
     embedding: EmbeddingConfig = None
     vectorstore: VectorStoreConfig = None
+    sampling: SamplingConfig = None
     
     def __post_init__(self) -> None:
         """Initialize sub-configurations if not provided."""
@@ -140,6 +185,8 @@ class AppConfig:
             self.embedding = EmbeddingConfig()
         if self.vectorstore is None:
             self.vectorstore = VectorStoreConfig()
+        if self.sampling is None:
+            self.sampling = SamplingConfig()
 
 
 # Global configuration instance
