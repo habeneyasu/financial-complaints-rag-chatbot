@@ -14,6 +14,7 @@ import re
 from src.config import config
 from src.exceptions import DataProcessingError, DataValidationError
 from src.utils.logger import get_logger
+from src.eda.analyzer import EDAAnalyzer
 
 
 class DataPreprocessor:
@@ -353,6 +354,128 @@ class DataPreprocessor:
         
         return self
     
+    def filter_by_products(
+        self,
+        products: List[str],
+        product_col: str = 'Product'
+    ) -> 'DataPreprocessor':
+        """
+        Filter dataset to include only specified products.
+        
+        This method explicitly filters the dataset to the assignment's specified product set.
+        It validates that the products exist in the dataset and logs the filtering results.
+        
+        Args:
+            products: List of product names to include
+            product_col: Name of the product column (default: 'Product')
+            
+        Returns:
+            Self for method chaining
+            
+        Raises:
+            DataValidationError: If product column doesn't exist
+        """
+        if product_col not in self.df.columns:
+            raise DataValidationError(f"Product column '{product_col}' not found in dataset")
+        
+        initial_count = len(self.df)
+        
+        # Get available products in dataset
+        available_products = self.df[product_col].unique()
+        
+        # Validate and filter to only products that exist
+        valid_products = [p for p in products if p in available_products]
+        missing_products = [p for p in products if p not in available_products]
+        
+        if missing_products:
+            self.logger.warning(
+                f"The following products were not found in dataset: {missing_products}"
+            )
+        
+        if not valid_products:
+            raise DataValidationError(
+                f"None of the specified products were found in the dataset. "
+                f"Available products: {sorted(available_products)[:10]}..."
+            )
+        
+        # Filter to valid products
+        self.df = self.df[self.df[product_col].isin(valid_products)].reset_index(drop=True)
+        removed = initial_count - len(self.df)
+        
+        self.logger.info(
+            f"Filtered to {len(valid_products)} products: {valid_products}. "
+            f"Kept {len(self.df):,} rows (removed {removed:,} rows, "
+            f"{removed/initial_count*100:.2f}%)"
+        )
+        
+        # Log product distribution after filtering
+        if len(self.df) > 0:
+            product_counts = self.df[product_col].value_counts()
+            self.logger.info("Product distribution after filtering:")
+            for product, count in product_counts.items():
+                self.logger.info(f"  {product}: {count:,} ({count/len(self.df)*100:.2f}%)")
+        
+        return self
+    
+    def remove_empty_narratives(
+        self,
+        narrative_col: Optional[str] = None
+    ) -> 'DataPreprocessor':
+        """
+        Remove records with empty or missing Consumer complaint narratives.
+        
+        This method explicitly removes records where the narrative column is:
+        - NaN/null
+        - Empty string
+        - Whitespace-only string
+        
+        This ensures the dataset only contains records with valid narrative text,
+        as required for the RAG pipeline.
+        
+        Args:
+            narrative_col: Name of the narrative column. If None, uses self.narrative_col
+            
+        Returns:
+            Self for method chaining
+            
+        Raises:
+            DataValidationError: If narrative column doesn't exist
+        """
+        col = narrative_col or self.narrative_col
+        
+        if col not in self.df.columns:
+            raise DataValidationError(f"Narrative column '{col}' not found in dataset")
+        
+        initial_count = len(self.df)
+        
+        # Identify empty narratives (NaN, empty string, or whitespace-only)
+        has_narrative = (
+            self.df[col].notna() & 
+            (self.df[col].astype(str).str.strip() != '') &
+            (self.df[col].astype(str) != 'nan') &
+            (self.df[col].astype(str) != 'None')
+        )
+        
+        empty_count = (~has_narrative).sum()
+        
+        # Filter to keep only records with narratives
+        self.df = self.df[has_narrative].reset_index(drop=True)
+        removed = initial_count - len(self.df)
+        
+        self.logger.info(
+            f"Removed {removed:,} records with empty narratives "
+            f"({removed/initial_count*100:.2f}%). "
+            f"Kept {len(self.df):,} records with valid narratives."
+        )
+        
+        if removed != empty_count:
+            self.logger.warning(
+                f"Expected to remove {empty_count} empty narratives, "
+                f"but removed {removed} records. This may indicate data inconsistencies."
+            )
+        
+        return self
+    
     def filter_by_conditions(
         self,
         conditions: Dict[str, Any],
@@ -428,6 +551,378 @@ class DataPreprocessor:
             "memory_usage_mb": self.df.memory_usage(deep=True).sum() / 1024**2
         }
     
+    def perform_eda_analysis(
+        self,
+        product_col: str = 'Product',
+        narrative_col: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Perform EDA analysis integrated with preprocessing pipeline.
+        
+        This method performs the EDA workflow (distribution, length, missingness)
+        that is tightly coupled with the preprocessing pipeline. It ensures that
+        EDA is performed on the current state of the preprocessed data.
+        
+        Args:
+            product_col: Name of the product column (default: 'Product')
+            narrative_col: Name of the narrative column (uses self.narrative_col if None)
+            
+        Returns:
+            Dictionary containing EDA results:
+            - product_distribution: Product distribution analysis
+            - narrative_length: Narrative length statistics
+            - narrative_presence: Narrative presence analysis
+            - summary_statistics: Overall dataset summary
+        """
+        narrative_col = narrative_col or self.narrative_col
+        
+        self.logger.info("Performing EDA analysis on preprocessed dataset...")
+        
+        # Initialize EDA analyzer with current dataframe
+        analyzer = EDAAnalyzer(self.df)
+        
+        eda_results = {}
+        
+        # 1. Product distribution analysis
+        try:
+            if product_col in self.df.columns:
+                eda_results['product_distribution'] = analyzer.analyze_product_distribution(
+                    product_col=product_col
+                )
+                self.logger.info(
+                    f"Product distribution: {eda_results['product_distribution']['total_products']} "
+                    f"unique products"
+                )
+            else:
+                self.logger.warning(f"Product column '{product_col}' not found. Skipping product distribution.")
+                eda_results['product_distribution'] = None
+        except Exception as e:
+            self.logger.error(f"Error analyzing product distribution: {e}")
+            eda_results['product_distribution'] = None
+        
+        # 2. Narrative length analysis
+        try:
+            if narrative_col in self.df.columns:
+                eda_results['narrative_length'] = analyzer.analyze_narrative_length(
+                    narrative_col=narrative_col
+                )
+                if 'word_count_stats' in eda_results['narrative_length']:
+                    mean_words = eda_results['narrative_length']['word_count_stats']['mean']
+                    self.logger.info(f"Narrative length: mean {mean_words:.1f} words")
+            else:
+                self.logger.warning(f"Narrative column '{narrative_col}' not found. Skipping narrative length.")
+                eda_results['narrative_length'] = None
+        except Exception as e:
+            self.logger.error(f"Error analyzing narrative length: {e}")
+            eda_results['narrative_length'] = None
+        
+        # 3. Narrative presence analysis
+        try:
+            if narrative_col in self.df.columns:
+                eda_results['narrative_presence'] = analyzer.analyze_narrative_presence(
+                    narrative_col=narrative_col
+                )
+                with_narrative = eda_results['narrative_presence']['with_narrative']
+                self.logger.info(
+                    f"Narrative presence: {with_narrative['count']:,} "
+                    f"({with_narrative['percentage']:.1f}%) with narratives"
+                )
+            else:
+                self.logger.warning(f"Narrative column '{narrative_col}' not found. Skipping narrative presence.")
+                eda_results['narrative_presence'] = None
+        except Exception as e:
+            self.logger.error(f"Error analyzing narrative presence: {e}")
+            eda_results['narrative_presence'] = None
+        
+        # 4. Summary statistics
+        try:
+            eda_results['summary_statistics'] = analyzer.get_summary_statistics()
+            self.logger.info(
+                f"Summary: {eda_results['summary_statistics']['shape'][0]:,} rows, "
+                f"{eda_results['summary_statistics']['shape'][1]} columns"
+            )
+        except Exception as e:
+            self.logger.error(f"Error getting summary statistics: {e}")
+            eda_results['summary_statistics'] = None
+        
+        self.logger.info("EDA analysis complete")
+        return eda_results
+    
+    def apply_task1_filtering(
+        self,
+        target_products: List[str],
+        product_col: str = 'Product',
+        narrative_col: Optional[str] = None,
+        perform_eda: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Apply complete Task 1 filtering workflow.
+        
+        This method performs the complete Task 1 filtering workflow:
+        1. Filters to specified product set
+        2. Removes records without narratives
+        3. Optionally performs EDA analysis
+        
+        This ensures reproducibility of the exact Task 1 dataset.
+        
+        Args:
+            target_products: List of product names to include
+            product_col: Name of the product column (default: 'Product')
+            narrative_col: Name of the narrative column (uses self.narrative_col if None)
+            perform_eda: Whether to perform EDA analysis after filtering (default: True)
+            
+        Returns:
+            Dictionary containing:
+            - filtered_dataframe: The filtered DataFrame
+            - preprocessing_summary: Summary of preprocessing operations
+            - eda_results: EDA analysis results (if perform_eda=True)
+            - filtering_stats: Statistics about filtering operations
+        """
+        narrative_col = narrative_col or self.narrative_col
+        
+        initial_count = len(self.df)
+        self.logger.info(
+            f"Starting Task 1 filtering workflow on {initial_count:,} records. "
+            f"Target products: {target_products}"
+        )
+        
+        # Step 1: Filter by products
+        self.filter_by_products(products=target_products, product_col=product_col)
+        after_product_filter = len(self.df)
+        
+        # Step 2: Remove empty narratives
+        self.remove_empty_narratives(narrative_col=narrative_col)
+        after_narrative_filter = len(self.df)
+        
+        # Collect filtering statistics
+        filtering_stats = {
+            "initial_count": initial_count,
+            "after_product_filter": after_product_filter,
+            "after_narrative_filter": after_narrative_filter,
+            "removed_by_product": initial_count - after_product_filter,
+            "removed_by_narrative": after_product_filter - after_narrative_filter,
+            "total_removed": initial_count - after_narrative_filter,
+            "retention_rate": (after_narrative_filter / initial_count * 100) if initial_count > 0 else 0
+        }
+        
+        # Step 3: Perform EDA if requested
+        eda_results = None
+        if perform_eda:
+            eda_results = self.perform_eda_analysis(
+                product_col=product_col,
+                narrative_col=narrative_col
+            )
+        
+        # Get preprocessing summary
+        preprocessing_summary = self.get_preprocessing_summary()
+        
+        self.logger.info(
+            f"Task 1 filtering complete: {after_narrative_filter:,} records "
+            f"({filtering_stats['retention_rate']:.2f}% retention)"
+        )
+        
+        return {
+            "filtered_dataframe": self.df.copy(),
+            "preprocessing_summary": preprocessing_summary,
+            "eda_results": eda_results,
+            "filtering_stats": filtering_stats
+        }
+    
+    def create_and_save_stratified_sample(
+        self,
+        n_samples: Optional[int] = None,
+        stratify_col: Optional[str] = None,
+        random_state: Optional[int] = None,
+        output_path: Optional[Path] = None,
+        min_samples_per_stratum: int = 1
+    ) -> Dict[str, Any]:
+        """
+        Create and save stratified sample with proportional representation across products.
+        
+        This method creates a stratified sample ensuring proportional representation
+        across all product categories and saves it with clear naming for reproducibility.
+        This is executable code (not just a notebook reference) that can be integrated
+        into the preprocessing/embedding pipeline.
+        
+        Args:
+            n_samples: Total number of samples (defaults to config.sampling.sample_size)
+            stratify_col: Column to stratify on (defaults to config.sampling.stratify_column)
+            random_state: Random seed (defaults to config.sampling.random_state)
+            output_path: Path to save sample (defaults to config.data.stratified_sample_path)
+            min_samples_per_stratum: Minimum samples per category (default: 1)
+            
+        Returns:
+            Dictionary containing:
+            - sampled_dataframe: The stratified sample DataFrame
+            - sampling_stats: Statistics about the sampling process
+            - saved_path: Path where sample was saved
+        """
+        from src.config import config
+        
+        # Use configuration defaults if not provided
+        n_samples = n_samples or config.sampling.sample_size
+        stratify_col = stratify_col or config.sampling.stratify_column
+        random_state = random_state if random_state is not None else config.sampling.random_state
+        
+        if output_path is None:
+            output_path = config.data.stratified_sample_path
+        
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        self.logger.info(
+            f"Creating stratified sample: {n_samples:,} samples, "
+            f"stratify by '{stratify_col}', random_state={random_state}"
+        )
+        
+        # Create stratified sample
+        df_sampled = self.stratified_sample(
+            n_samples=n_samples,
+            stratify_col=stratify_col,
+            random_state=random_state,
+            min_samples_per_stratum=min_samples_per_stratum
+        )
+        
+        # Calculate sampling statistics
+        original_counts = self.df[stratify_col].value_counts()
+        sample_counts = df_sampled[stratify_col].value_counts()
+        original_proportions = (original_counts / len(self.df) * 100).round(2)
+        sample_proportions = (sample_counts / len(df_sampled) * 100).round(2)
+        
+        # Calculate differences
+        proportion_diffs = {}
+        for product in original_proportions.index:
+            orig_pct = original_proportions[product]
+            sample_pct = sample_proportions.get(product, 0)
+            proportion_diffs[product] = {
+                'original_pct': float(orig_pct),
+                'sample_pct': float(sample_pct),
+                'difference_pct': float(sample_pct - orig_pct),
+                'original_count': int(original_counts[product]),
+                'sample_count': int(sample_counts.get(product, 0))
+            }
+        
+        sampling_stats = {
+            "original_size": len(self.df),
+            "sample_size": len(df_sampled),
+            "target_size": n_samples,
+            "sampling_ratio": len(df_sampled) / len(self.df) * 100,
+            "within_target_range": 10000 <= len(df_sampled) <= 15000,
+            "stratify_column": stratify_col,
+            "random_state": random_state,
+            "product_proportions": proportion_diffs,
+            "max_proportion_diff": max([abs(d['difference_pct']) for d in proportion_diffs.values()]),
+            "mean_proportion_diff": sum([abs(d['difference_pct']) for d in proportion_diffs.values()]) / len(proportion_diffs)
+        }
+        
+        # Save stratified sample
+        self.logger.info(f"Saving stratified sample to: {output_path}")
+        df_sampled.to_parquet(output_path, index=False, engine='pyarrow')
+        file_size_mb = output_path.stat().st_size / (1024**2)
+        
+        self.logger.info(
+            f"✅ Stratified sample saved: {len(df_sampled):,} rows, "
+            f"{file_size_mb:.2f} MB, max proportion diff: {sampling_stats['max_proportion_diff']:.2f}%"
+        )
+        
+        return {
+            "sampled_dataframe": df_sampled,
+            "sampling_stats": sampling_stats,
+            "saved_path": output_path
+        }
+    
+    def apply_complete_pipeline(
+        self,
+        target_products: List[str],
+        create_stratified_sample: bool = True,
+        n_samples: Optional[int] = None,
+        perform_eda: bool = True,
+        save_filtered: bool = True,
+        save_stratified: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Apply complete preprocessing pipeline: filtering -> sampling -> ready for embedding.
+        
+        This method integrates the complete workflow:
+        1. Task 1 filtering (products + narratives)
+        2. Optional stratified sampling (10k-15k with proportional representation)
+        3. Saves outputs with clear naming for reproducibility
+        
+        This is executable code that can be run from scripts or notebooks to reliably
+        reproduce the vector store.
+        
+        Args:
+            target_products: List of products to filter to
+            create_stratified_sample: Whether to create stratified sample (default: True)
+            n_samples: Sample size (defaults to config)
+            perform_eda: Whether to perform EDA analysis (default: True)
+            save_filtered: Whether to save filtered dataset (default: True)
+            save_stratified: Whether to save stratified sample (default: True)
+            
+        Returns:
+            Dictionary with all pipeline results and statistics
+        """
+        from src.config import config
+        
+        self.logger.info("=" * 100)
+        self.logger.info("STARTING COMPLETE PREPROCESSING PIPELINE")
+        self.logger.info("=" * 100)
+        
+        pipeline_results = {}
+        
+        # Step 1: Task 1 filtering
+        self.logger.info("\n📋 Step 1: Task 1 Filtering (Products + Narratives)")
+        task1_results = self.apply_task1_filtering(
+            target_products=target_products,
+            perform_eda=perform_eda
+        )
+        df_filtered = task1_results['filtered_dataframe']
+        pipeline_results['task1'] = task1_results
+        
+        # Update preprocessor to use filtered data
+        self.df = df_filtered
+        
+        # Save filtered dataset if requested
+        if save_filtered:
+            self.logger.info("\n💾 Saving filtered dataset...")
+            saved_files = self.save_filtered_dataset(
+                filename="task1_filtered_complaints",
+                save_csv=True,
+                save_parquet=True
+            )
+            pipeline_results['filtered_files'] = saved_files
+        
+        # Step 2: Stratified sampling (if requested)
+        if create_stratified_sample:
+            self.logger.info("\n📊 Step 2: Creating Stratified Sample")
+            sample_results = self.create_and_save_stratified_sample(
+                n_samples=n_samples,
+                output_path=config.data.stratified_sample_path if save_stratified else None
+            )
+            pipeline_results['stratified_sample'] = sample_results
+            df_final = sample_results['sampled_dataframe']
+        else:
+            self.logger.info("\n⏭️  Skipping stratified sampling")
+            df_final = df_filtered
+            pipeline_results['stratified_sample'] = None
+        
+        pipeline_results['final_dataframe'] = df_final
+        pipeline_results['pipeline_summary'] = {
+            "initial_size": task1_results['filtering_stats']['initial_count'],
+            "after_filtering": len(df_filtered),
+            "final_size": len(df_final),
+            "sampling_applied": create_stratified_sample,
+            "ready_for_embedding": True
+        }
+        
+        self.logger.info("\n" + "=" * 100)
+        self.logger.info("✅ COMPLETE PIPELINE FINISHED")
+        self.logger.info("=" * 100)
+        self.logger.info(f"Final dataset size: {len(df_final):,} rows")
+        self.logger.info(f"Ready for: chunking → embedding → vector store creation")
+        
+        return pipeline_results
+    
     def save_processed_data(self, file_path: Optional[Path] = None, format: str = 'parquet') -> Path:
         """
         Save processed data to file.
@@ -462,6 +957,71 @@ class DataPreprocessor:
             error_msg = f"Error saving processed data: {str(e)}"
             self.logger.error(error_msg)
             raise DataProcessingError(error_msg, details={"path": str(file_path), "format": format})
+    
+    def save_filtered_dataset(
+        self,
+        output_dir: Optional[Path] = None,
+        filename: str = "task1_filtered_complaints",
+        save_csv: bool = True,
+        save_parquet: bool = True
+    ) -> Dict[str, Path]:
+        """
+        Save filtered dataset with clear naming convention for Task 1.
+        
+        This method saves the filtered dataset with a clearly named CSV file
+        as requested for Task 1 deliverables. The filename clearly indicates
+        this is the Task 1 filtered dataset.
+        
+        Args:
+            output_dir: Directory to save files (defaults to config processed_data_dir)
+            filename: Base filename (without extension)
+            save_csv: Whether to save CSV format (default: True)
+            save_parquet: Whether to save Parquet format (default: True)
+            
+        Returns:
+            Dictionary with format as key and file path as value
+            
+        Raises:
+            DataProcessingError: If saving fails
+        """
+        if output_dir is None:
+            output_dir = config.data.processed_data_dir
+        
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        saved_files = {}
+        
+        try:
+            if save_csv:
+                csv_path = output_dir / f"{filename}.csv"
+                self.df.to_csv(csv_path, index=False)
+                csv_size_mb = csv_path.stat().st_size / (1024**2)
+                self.logger.info(
+                    f"Saved filtered CSV: {csv_path} "
+                    f"({csv_size_mb:.2f} MB, {len(self.df):,} rows)"
+                )
+                saved_files['csv'] = csv_path
+            
+            if save_parquet:
+                parquet_path = output_dir / f"{filename}.parquet"
+                self.df.to_parquet(parquet_path, index=False, engine='pyarrow')
+                parquet_size_mb = parquet_path.stat().st_size / (1024**2)
+                self.logger.info(
+                    f"Saved filtered Parquet: {parquet_path} "
+                    f"({parquet_size_mb:.2f} MB, {len(self.df):,} rows)"
+                )
+                saved_files['parquet'] = parquet_path
+            
+            if not saved_files:
+                raise DataProcessingError("No files were saved. Both save_csv and save_parquet are False.")
+            
+            return saved_files
+            
+        except Exception as e:
+            error_msg = f"Error saving filtered dataset: {str(e)}"
+            self.logger.error(error_msg)
+            raise DataProcessingError(error_msg, details={"output_dir": str(output_dir), "filename": filename})
     
     def stratified_sample(
         self,
