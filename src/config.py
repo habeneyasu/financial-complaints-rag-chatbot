@@ -68,11 +68,30 @@ class LoggingConfig:
 
 
 @dataclass
+class ChunkingConfig:
+    """Configuration for text chunking."""
+    
+    chunk_size: int = int(os.getenv("CHUNK_SIZE", "500"))
+    chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "50"))
+    use_langchain: bool = os.getenv("USE_LANGCHAIN_CHUNKING", "true").lower() == "true"
+    
+    def __post_init__(self) -> None:
+        """Validate chunking configuration."""
+        if self.chunk_size <= 0:
+            raise ValueError("chunk_size must be positive")
+        if self.chunk_overlap < 0:
+            raise ValueError("chunk_overlap must be non-negative")
+        if self.chunk_overlap >= self.chunk_size:
+            raise ValueError("chunk_overlap must be less than chunk_size")
+
+
+@dataclass
 class AppConfig:
     """Main application configuration."""
     
     data: DataConfig = None
     logging: LoggingConfig = None
+    chunking: ChunkingConfig = None
     
     def __post_init__(self) -> None:
         """Initialize sub-configurations if not provided."""
@@ -80,6 +99,8 @@ class AppConfig:
             self.data = DataConfig()
         if self.logging is None:
             self.logging = LoggingConfig()
+        if self.chunking is None:
+            self.chunking = ChunkingConfig()
 
 
 # Global configuration instance

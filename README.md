@@ -190,7 +190,8 @@ jupyter lab
 3. `03_filter_dataset.ipynb` - Filter and subset data
 4. `04_clean_text_narratives.ipynb` - Text cleaning for embeddings
 5. `05_stratified_sampling.ipynb` - Create stratified sample (10,000-15,000 complaints) with proportional product representation
-6. `06_text_chunking_embedding.ipynb` - Text chunking, embedding generation, and vector store indexing (Task 2)
+6. `06_text_chunking_experiment.ipynb` - Text chunking strategy experimentation and optimization
+7. `07_embedding_vectorstore.ipynb` - Embedding generation and vector store indexing (Task 2)
 
 ## 📋 Tasks Overview
 
@@ -254,7 +255,8 @@ financial-complaints-rag-chatbot/
 │   ├── 03_filter_dataset.ipynb
 │   ├── 04_clean_text_narratives.ipynb
 │   ├── 05_stratified_sampling.ipynb      # Stratified sampling (10K-15K samples)
-│   ├── 06_text_chunking_embedding.ipynb  # Task 2: Text chunking & vector store
+│   ├── 06_text_chunking_experiment.ipynb # Text chunking experimentation
+│   ├── 07_embedding_vectorstore.ipynb    # Task 2: Embedding & vector store
 │   └── README.md
 ├── src/                           # Source code
 │   ├── data/                      # Data processing modules
@@ -264,6 +266,9 @@ financial-complaints-rag-chatbot/
 │   ├── eda/                       # EDA utilities
 │   │   ├── __init__.py
 │   │   └── analyzer.py            # EDAAnalyzer class
+│   ├── rag/                       # RAG pipeline modules
+│   │   ├── __init__.py
+│   │   └── chunker.py             # TextChunker class
 │   ├── utils/                     # Utility modules
 │   │   ├── __init__.py
 │   │   └── logger.py              # Logging utilities
@@ -344,7 +349,7 @@ The project follows PEP 8 style guidelines. Consider using:
 - [x] Logging infrastructure
 
 ### 🚧 In Progress
-- [ ] Text chunking strategy implementation
+- [x] Text chunking strategy implementation and experimentation
 - [ ] Embedding generation pipeline
 - [ ] Vector store creation and persistence (ChromaDB)
 - [ ] Vector indexing and metadata management
