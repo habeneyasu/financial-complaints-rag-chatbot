@@ -68,11 +68,65 @@ class LoggingConfig:
 
 
 @dataclass
+class ChunkingConfig:
+    """Configuration for text chunking."""
+    
+    chunk_size: int = int(os.getenv("CHUNK_SIZE", "500"))
+    chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "50"))
+    use_langchain: bool = os.getenv("USE_LANGCHAIN_CHUNKING", "true").lower() == "true"
+    
+    def __post_init__(self) -> None:
+        """Validate chunking configuration."""
+        if self.chunk_size <= 0:
+            raise ValueError("chunk_size must be positive")
+        if self.chunk_overlap < 0:
+            raise ValueError("chunk_overlap must be non-negative")
+        if self.chunk_overlap >= self.chunk_size:
+            raise ValueError("chunk_overlap must be less than chunk_size")
+
+
+@dataclass
+class EmbeddingConfig:
+    """Configuration for embedding generation."""
+    
+    model_name: str = os.getenv(
+        "EMBEDDING_MODEL",
+        "sentence-transformers/all-MiniLM-L6-v2"
+    )
+    batch_size: int = int(os.getenv("EMBEDDING_BATCH_SIZE", "32"))
+    normalize_embeddings: bool = os.getenv(
+        "NORMALIZE_EMBEDDINGS", "true"
+    ).lower() == "true"
+    device: Optional[str] = os.getenv("EMBEDDING_DEVICE", None)
+    
+    def __post_init__(self) -> None:
+        """Validate embedding configuration."""
+        if self.batch_size <= 0:
+            raise ValueError("batch_size must be positive")
+
+
+@dataclass
+class VectorStoreConfig:
+    """Configuration for vector store."""
+    
+    collection_name: str = os.getenv("VECTOR_STORE_COLLECTION", "financial_complaints")
+    batch_size: int = int(os.getenv("VECTOR_STORE_BATCH_SIZE", "100"))
+    
+    def __post_init__(self) -> None:
+        """Validate vector store configuration."""
+        if self.batch_size <= 0:
+            raise ValueError("batch_size must be positive")
+
+
+@dataclass
 class AppConfig:
     """Main application configuration."""
     
     data: DataConfig = None
     logging: LoggingConfig = None
+    chunking: ChunkingConfig = None
+    embedding: EmbeddingConfig = None
+    vectorstore: VectorStoreConfig = None
     
     def __post_init__(self) -> None:
         """Initialize sub-configurations if not provided."""
@@ -80,6 +134,12 @@ class AppConfig:
             self.data = DataConfig()
         if self.logging is None:
             self.logging = LoggingConfig()
+        if self.chunking is None:
+            self.chunking = ChunkingConfig()
+        if self.embedding is None:
+            self.embedding = EmbeddingConfig()
+        if self.vectorstore is None:
+            self.vectorstore = VectorStoreConfig()
 
 
 # Global configuration instance

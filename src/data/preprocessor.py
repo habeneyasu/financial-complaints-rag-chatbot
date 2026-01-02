@@ -463,6 +463,126 @@ class DataPreprocessor:
             self.logger.error(error_msg)
             raise DataProcessingError(error_msg, details={"path": str(file_path), "format": format})
     
+    def stratified_sample(
+        self,
+        n_samples: int,
+        stratify_col: str = 'Product',
+        random_state: Optional[int] = 42,
+        min_samples_per_stratum: int = 1
+    ) -> pd.DataFrame:
+        """
+        Create a stratified random sample from the dataset.
+        
+        This method ensures proportional representation across all categories
+        in the specified stratification column. If a category has fewer samples
+        than required proportionally, all available samples are taken.
+        
+        Args:
+            n_samples: Total number of samples to draw (target range: 10,000-15,000)
+            stratify_col: Column name to stratify on (default: 'Product')
+            random_state: Random seed for reproducibility
+            min_samples_per_stratum: Minimum samples per category (default: 1)
+            
+        Returns:
+            Stratified sample DataFrame
+            
+        Raises:
+            DataValidationError: If stratification column doesn't exist or has insufficient data
+        """
+        if stratify_col not in self.df.columns:
+            raise DataValidationError(
+                f"Stratification column '{stratify_col}' not found in dataset"
+            )
+        
+        if n_samples <= 0:
+            raise DataValidationError(f"Sample size must be positive, got {n_samples}")
+        
+        if n_samples > len(self.df):
+            self.logger.warning(
+                f"Requested sample size ({n_samples:,}) exceeds dataset size ({len(self.df):,}). "
+                f"Returning full dataset."
+            )
+            return self.df.copy()
+        
+        # Get value counts for stratification column
+        value_counts = self.df[stratify_col].value_counts()
+        total_rows = len(self.df)
+        
+        self.logger.info(f"Creating stratified sample of {n_samples:,} from {total_rows:,} rows")
+        self.logger.info(f"Stratifying by: {stratify_col}")
+        self.logger.info(f"Unique categories: {value_counts.shape[0]}")
+        
+        # Calculate proportional allocation
+        proportions = value_counts / total_rows
+        allocations = (proportions * n_samples).astype(int)
+        
+        # Ensure minimum samples per stratum
+        allocations = allocations.clip(lower=min_samples_per_stratum)
+        
+        # Adjust for rounding errors - distribute remaining samples
+        allocated_total = allocations.sum()
+        remaining = n_samples - allocated_total
+        
+        if remaining > 0:
+            # Distribute remaining samples to largest categories
+            sorted_indices = allocations.sort_values(ascending=False).index
+            for idx in sorted_indices[:remaining]:
+                allocations[idx] += 1
+        elif remaining < 0:
+            # If we over-allocated, reduce from smallest categories
+            sorted_indices = allocations.sort_values(ascending=True).index
+            for idx in sorted_indices:
+                if allocations[idx] > min_samples_per_stratum and remaining < 0:
+                    reduction = min(abs(remaining), allocations[idx] - min_samples_per_stratum)
+                    allocations[idx] -= reduction
+                    remaining += reduction
+                    if remaining >= 0:
+                        break
+        
+        # Sample from each stratum
+        sampled_dfs = []
+        sampling_summary = {}
+        
+        for category, n_sample in allocations.items():
+            category_df = self.df[self.df[stratify_col] == category]
+            available = len(category_df)
+            n_sample = min(n_sample, available)  # Don't sample more than available
+            
+            if n_sample > 0:
+                sampled = category_df.sample(n=n_sample, random_state=random_state)
+                sampled_dfs.append(sampled)
+                
+                sampling_summary[category] = {
+                    'requested': int(allocations[category]),
+                    'sampled': len(sampled),
+                    'available': available,
+                    'proportion': f"{(available / total_rows * 100):.2f}%"
+                }
+        
+        # Combine all sampled dataframes
+        if sampled_dfs:
+            result_df = pd.concat(sampled_dfs, ignore_index=True)
+            # Shuffle the final result
+            result_df = result_df.sample(frac=1, random_state=random_state).reset_index(drop=True)
+            
+            actual_sample_size = len(result_df)
+            self.logger.info(f"✅ Stratified sample created: {actual_sample_size:,} rows")
+            
+            # Log sampling summary
+            self.logger.info("\nSampling Summary:")
+            self.logger.info("=" * 80)
+            for category, info in sampling_summary.items():
+                self.logger.info(
+                    f"{category}: {info['sampled']:,} sampled "
+                    f"(requested: {info['requested']:,}, available: {info['available']:,}, "
+                    f"proportion: {info['proportion']})"
+                )
+            self.logger.info("=" * 80)
+            
+            return result_df
+        else:
+            raise DataValidationError("No samples could be drawn from any category")
+    
     def get_data(self) -> pd.DataFrame:
         """
         Get the processed DataFrame.
