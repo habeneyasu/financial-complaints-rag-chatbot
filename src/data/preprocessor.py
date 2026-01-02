@@ -115,6 +115,139 @@ class DataPreprocessor:
         
         return self
     
+    def clean_text_narratives(
+        self,
+        lowercase: bool = True,
+        remove_special_chars: bool = True,
+        remove_boilerplate: bool = True,
+        normalize_whitespace: bool = True,
+        remove_urls: bool = True,
+        remove_emails: bool = True,
+        remove_phone_numbers: bool = False,
+        preserve_punctuation: bool = False
+    ) -> 'DataPreprocessor':
+        """
+        Clean text narratives for improved embedding quality.
+        
+        This method performs comprehensive text cleaning including:
+        - Lowercasing
+        - Removing special characters
+        - Removing boilerplate text
+        - Text normalization
+        
+        Args:
+            lowercase: Convert text to lowercase
+            remove_special_chars: Remove special characters (keeps alphanumeric and basic punctuation)
+            remove_boilerplate: Remove common boilerplate phrases
+            normalize_whitespace: Normalize whitespace (multiple spaces to single space)
+            remove_urls: Remove URLs from text
+            remove_emails: Remove email addresses from text
+            remove_phone_numbers: Remove phone numbers from text
+            preserve_punctuation: If True, keeps basic punctuation; if False, removes all punctuation
+            
+        Returns:
+            Self for method chaining
+        """
+        if self.narrative_col not in self.df.columns:
+            self.logger.warning(f"Column '{self.narrative_col}' not found. Skipping text cleaning.")
+            return self
+        
+        initial_count = self.df[self.narrative_col].notna().sum()
+        self.logger.info(f"Starting text cleaning for {initial_count:,} narratives")
+        
+        # Work on a copy to avoid SettingWithCopyWarning
+        narratives = self.df[self.narrative_col].copy()
+        
+        # Convert to string (handles NaN)
+        narratives = narratives.astype(str)
+        
+        # Replace 'nan' strings with actual NaN
+        narratives = narratives.replace(['nan', 'None', 'NaN'], np.nan)
+        
+        # Only process non-null values
+        mask = narratives.notna()
+        
+        if lowercase:
+            narratives.loc[mask] = narratives.loc[mask].str.lower()
+            self.logger.info("Applied lowercasing")
+        
+        if remove_urls:
+            # Remove URLs
+            url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+            narratives.loc[mask] = narratives.loc[mask].str.replace(url_pattern, '', regex=True)
+            self.logger.info("Removed URLs")
+        
+        if remove_emails:
+            # Remove email addresses
+            email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+            narratives.loc[mask] = narratives.loc[mask].str.replace(email_pattern, '', regex=True)
+            self.logger.info("Removed email addresses")
+        
+        if remove_phone_numbers:
+            # Remove phone numbers (various formats)
+            phone_pattern = r'(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}'
+            narratives.loc[mask] = narratives.loc[mask].str.replace(phone_pattern, '', regex=True)
+            self.logger.info("Removed phone numbers")
+        
+        if remove_boilerplate:
+            # Common boilerplate phrases to remove
+            boilerplate_patterns = [
+                r'i am writing to file a complaint',
+                r'i am writing to complain',
+                r'this is a complaint',
+                r'i would like to file a complaint',
+                r'i want to file a complaint',
+                r'please note',
+                r'please be advised',
+                r'kindly note',
+                r'for your information',
+                r'fyi',
+            ]
+            
+            for pattern in boilerplate_patterns:
+                narratives.loc[mask] = narratives.loc[mask].str.replace(
+                    pattern, '', case=False, regex=True
+                )
+            
+            self.logger.info("Removed boilerplate phrases")
+        
+        if remove_special_chars:
+            if preserve_punctuation:
+                # Keep alphanumeric, spaces, and basic punctuation
+                narratives.loc[mask] = narratives.loc[mask].str.replace(
+                    r'[^a-z0-9\s.,!?;:\'\"-]', '', regex=True
+                )
+            else:
+                # Keep only alphanumeric and spaces
+                narratives.loc[mask] = narratives.loc[mask].str.replace(
+                    r'[^a-z0-9\s]', '', regex=True
+                )
+            self.logger.info(f"Removed special characters (preserve_punctuation={preserve_punctuation})")
+        
+        if normalize_whitespace:
+            # Replace multiple spaces/newlines/tabs with single space
+            narratives.loc[mask] = narratives.loc[mask].str.replace(r'\s+', ' ', regex=True)
+            # Strip leading/trailing whitespace
+            narratives.loc[mask] = narratives.loc[mask].str.strip()
+            self.logger.info("Normalized whitespace")
+        
+        # Update the dataframe
+        self.df[self.narrative_col] = narratives
+        
+        # Remove narratives that became empty after cleaning
+        empty_after_cleaning = (self.df[self.narrative_col].isna() | 
+                               (self.df[self.narrative_col].str.strip() == '')).sum()
+        
+        if empty_after_cleaning > 0:
+            self.logger.warning(f"{empty_after_cleaning:,} narratives became empty after cleaning")
+            # Optionally set to NaN
+            self.df.loc[self.df[self.narrative_col].str.strip() == '', self.narrative_col] = np.nan
+        
+        final_count = self.df[self.narrative_col].notna().sum()
+        self.logger.info(f"Text cleaning complete. Non-null narratives: {initial_count:,} -> {final_count:,}")
+        
+        return self
+    
     def handle_missing_values(
         self,
         strategy: str = 'drop',
