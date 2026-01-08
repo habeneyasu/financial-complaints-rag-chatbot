@@ -319,6 +319,9 @@ jupyter lab
 8. `08_vectorstore_creation.ipynb` - Vector store creation and indexing (Task 2)
 9. `09_rag_evaluation.ipynb` - **Task 3 RAG pipeline evaluation** (retrieval + generation + qualitative assessment)
 
+**Application:**
+- `app.py` - **Task 4: Gradio web interface** for interactive chatbot (run with `./run_app.sh` or `python app.py`)
+
 ## 📋 Tasks Overview
 
 ### Task 1: Exploratory Data Analysis and Data Preprocessing ✅
