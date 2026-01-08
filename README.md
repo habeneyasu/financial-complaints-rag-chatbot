@@ -158,9 +158,50 @@ The application will start the Gradio interface, typically accessible at `http:/
 - 🎨 **Modern UI**: Clean, professional interface with custom styling
 - 🔍 **Real-time Processing**: Instant question answering based on complaint data
 
-### Running the Complete Pipeline
+### Running Task 1 & 2: Complete EDA, Preprocessing, and Vector Store Setup
 
-Execute the complete preprocessing and embedding pipeline:
+**Standalone Script (Recommended for Task 1 & 2):**
+
+```bash
+# Run complete Task 1 & 2 pipeline (EDA, filtering, sampling, chunking, embedding, vector store)
+python run_task1_task2.py
+
+# With custom parameters
+python run_task1_task2.py \
+    --data-path data/raw/complaints.csv \
+    --sample-size 12500 \
+    --output-dir data/processed \
+    --vector-store-path vector_store
+
+# Skip vector store creation (faster for testing)
+python run_task1_task2.py --skip-vector-store
+
+# Skip EDA (faster for testing)
+python run_task1_task2.py --skip-eda
+```
+
+This script demonstrates all key functions:
+1. ✅ **EDA**: Product distribution, narrative length analysis, missing data analysis
+2. ✅ **Filtering/Cleaning**: Product filtering, narrative removal
+3. ✅ **Stratified Sampling**: 10k-15k samples with proportional representation
+4. ✅ **Text Chunking**: Splits narratives into 500-char chunks with 75-char overlap
+5. ✅ **Embedding Generation**: Creates 384-dimensional vectors using sentence-transformers
+6. ✅ **Vector Store Creation**: Builds ChromaDB vector store with metadata
+7. ✅ **Saves filtered_complaints.csv**: Outputs `task1_filtered_complaints.csv` as required
+
+**Key Functions Implemented:**
+- `EDAAnalyzer.analyze_product_distribution()` - EDA analysis
+- `DataPreprocessor.filter_by_products()` - Product filtering
+- `DataPreprocessor.remove_empty_narratives()` - Narrative removal
+- `DataPreprocessor.stratified_sample()` - Stratified sampling
+- `DataPreprocessor.save_filtered_dataset()` - Saves `task1_filtered_complaints.csv`
+- `TextChunker.chunk_dataframe()` - Text chunking
+- `EmbeddingGenerator.generate_embeddings()` - Embedding generation
+- `VectorStore.add_documents()` - Vector store building
+
+### Running the Complete Pipeline (Alternative)
+
+Execute the complete preprocessing and embedding pipeline using the module:
 
 ```bash
 # Run with default configuration
@@ -325,8 +366,15 @@ jupyter lab
 ## 📋 Tasks Overview
 
 ### Task 1: Exploratory Data Analysis and Data Preprocessing ✅
+- **Standalone Script**: `run_task1_task2.py` - Complete executable script demonstrating all functions
 - **Notebooks**: `01_load_dataset.ipynb`, `02_eda_analysis.ipynb`, `03_filter_dataset.ipynb`, `04_clean_text_narratives.ipynb`
 - **Modules**: `src/data/loader.py`, `src/data/preprocessor.py`, `src/eda/analyzer.py`
+- **Key Functions**:
+  - `EDAAnalyzer.analyze_product_distribution()` - EDA product analysis
+  - `EDAAnalyzer.analyze_narrative_length()` - Narrative length statistics
+  - `DataPreprocessor.filter_by_products()` - Product filtering
+  - `DataPreprocessor.remove_empty_narratives()` - Narrative removal
+  - `DataPreprocessor.save_filtered_dataset()` - Saves `task1_filtered_complaints.csv`
 - **Objectives**:
   - Load CFPB complaint dataset
   - Perform exploratory data analysis (product distribution, narrative analysis)
@@ -339,8 +387,10 @@ jupyter lab
   - ✅ Filtered dataset saved as `task1_filtered_complaints.csv` (clearly named)
   - ✅ EDA analysis integrated with preprocessing pipeline
   - ✅ Fully reproducible workflow documented in code
+  - ✅ Executable script (`run_task1_task2.py`) demonstrating all functions
 
 ### Task 2: Text Chunking, Embedding, and Vector Store Indexing ✅
+- **Standalone Script**: `run_task1_task2.py` - Complete executable script demonstrating all functions
 - **Objective**: Convert the cleaned text narratives into a format suitable for efficient semantic search
 - **Prerequisites**: 
   - Stratified sample of 10,000-15,000 complaints with proportional product representation
@@ -350,9 +400,14 @@ jupyter lab
   - **Embedding Generation**: Create vector embeddings using `sentence-transformers/all-MiniLM-L6-v2` (384 dimensions)
   - **Vector Store Indexing**: Build and persist vector store (ChromaDB) for semantic search
   - **Metadata Management**: Store relevant complaint metadata alongside embeddings for traceability
+- **Key Functions**:
+  - `DataPreprocessor.stratified_sample()` - Stratified sampling with proportional representation
+  - `TextChunker.chunk_dataframe()` - Text chunking with configurable size and overlap
+  - `EmbeddingGenerator.generate_embeddings()` - Embedding generation using sentence-transformers
+  - `VectorStore.add_documents()` - Vector store creation and indexing
 - **Notebooks**: `05_stratified_sampling.ipynb`, `06_text_chunking_experiment.ipynb`, `07_embedding_generation.ipynb`, `08_vectorstore_creation.ipynb`
 - **Modules**: `src/data/preprocessor.py`, `src/pipeline.py`, `src/rag/chunker.py`, `src/rag/embedder.py`, `src/rag/vectorstore.py`
-- **Executable Pipeline**: `src/pipeline.py` provides complete workflow as executable code
+- **Executable Pipeline**: `src/pipeline.py` and `run_task1_task2.py` provide complete workflow as executable code
 - **Configuration**: All parameters configurable via `config.py` and environment variables
 - **Deliverables**:
   - ✅ Stratified sampling as executable code with configurable sample size, product column, and output locations
@@ -361,6 +416,7 @@ jupyter lab
   - ✅ Persisted ChromaDB vector store ready for retrieval
   - ✅ Metadata storage enabling full traceability to source complaints
   - ✅ Fully reproducible pipeline for reliable vector store creation
+  - ✅ Executable script (`run_task1_task2.py`) demonstrating all functions
 
 ### Task 3: RAG Pipeline Implementation and Evaluation ✅
 - **Objective**: Build the complete Retrieval-Augmented Generation pipeline and evaluate its effectiveness
@@ -463,6 +519,7 @@ financial-complaints-rag-chatbot/
 │   └── app.log
 ├── app.py                         # Main application entry point (Gradio interface)
 ├── run_app.sh                     # Application launcher script
+├── run_task1_task2.py             # **Task 1 & 2: Complete EDA, preprocessing, and vector store script**
 ├── populate_vectorstore.py        # Vector store population script
 ├── optimize_data_loading.py       # Data loading optimization script
 ├── generate_report_visualizations.py  # Report visualization generator
