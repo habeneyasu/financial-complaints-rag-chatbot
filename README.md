@@ -9,11 +9,14 @@ A production-ready **Retrieval-Augmented Generation (RAG)** chatbot system for a
 
 - **Intelligent Question Answering**: Query financial complaint data using natural language
 - **Semantic Search**: Leverage vector embeddings for contextually relevant retrieval
+- **Streaming Responses**: Real-time token-by-token answer generation for enhanced user experience
+- **Source Citations**: Every answer includes traceable source documents for verification
 - **Data Preprocessing Pipeline**: Automated cleaning and normalization of complaint narratives
 - **Exploratory Data Analysis**: Comprehensive EDA tools for understanding complaint patterns
 - **Modular Architecture**: Clean, maintainable codebase following SOLID principles
 - **Production-Ready**: Comprehensive error handling, logging, and configuration management
-- **Interactive UI**: Gradio-based web interface for easy interaction
+- **Interactive Web UI**: Modern Gradio-based interface with custom styling and example questions
+- **Easy Deployment**: Simple launcher script for quick application startup
 
 ## 🏗️ Architecture
 
@@ -129,11 +132,31 @@ Configuration is managed through `src/config.py` using the 12-factor app methodo
 
 ### Running the Application
 
+You can run the application in several ways:
+
+**Option 1: Using the launcher script (Recommended)**
+```bash
+./run_app.sh
+```
+
+**Option 2: Direct Python execution**
 ```bash
 python app.py
 ```
 
-This will start the Gradio interface, typically accessible at `http://localhost:7860`.
+**Option 3: Using virtual environment Python directly**
+```bash
+venv/bin/python app.py
+```
+
+The application will start the Gradio interface, typically accessible at `http://localhost:7860`.
+
+**Application Features:**
+- 🚀 **Streaming Responses**: Answers appear token-by-token for better user experience
+- 📚 **Source Citations**: Every answer includes source documents for verification
+- 🎯 **Example Questions**: Pre-loaded example questions to get started quickly
+- 🎨 **Modern UI**: Clean, professional interface with custom styling
+- 🔍 **Real-time Processing**: Instant question answering based on complaint data
 
 ### Running the Complete Pipeline
 
@@ -352,13 +375,23 @@ jupyter lab
   - ✅ Evaluation table with quality scores and analysis
   - ✅ Markdown evaluation report documenting results
 
-### Task 4: Application Development (Upcoming)
+### Task 4: Application Development ✅
 - **Objective**: Create user-friendly interface and deploy the system
 - **Key Components**:
-  - Build Gradio/Streamlit web interface
-  - Implement user interaction flows
-  - Add performance monitoring and evaluation
-  - Deploy and optimize for production
+  - ✅ **Gradio Web Interface**: Production-ready interactive chatbot interface
+  - ✅ **Streaming Responses**: Real-time token-by-token answer generation for better UX
+  - ✅ **Source Citation**: Display of retrieved source documents for every answer
+  - ✅ **Example Questions**: Pre-loaded examples to guide users
+  - ✅ **Error Handling**: Comprehensive error handling and user-friendly messages
+  - ✅ **Launcher Script**: Convenient `run_app.sh` script for easy startup
+  - ✅ **Custom Styling**: Professional UI with custom CSS
+- **Modules**: `app.py`, `run_app.sh`
+- **Deliverables**:
+  - ✅ Fully functional Gradio web interface
+  - ✅ Streaming response generation
+  - ✅ Source document display
+  - ✅ User-friendly error messages
+  - ✅ Production-ready application launcher
 
 ## 📁 Project Structure
 
@@ -371,9 +404,13 @@ financial-complaints-rag-chatbot/
 │   ├── raw/                       # Raw CFPB complaint data
 │   │   └── complaints.csv         # Source dataset
 │   └── processed/                 # Processed/cleaned data
-│       └── processed_complaints.parquet
+│       ├── filtered_complaints.parquet
+│       ├── sampled_complaints.parquet
+│       ├── cleaned_complaints.parquet
+│       └── chunked_complaints.parquet
 ├── vector_store/                  # Persisted vector embeddings (ChromaDB)
 ├── notebooks/                     # Jupyter notebooks for analysis
+│   ├── 00_complete_pipeline.ipynb # Complete pipeline notebook
 │   ├── 01_load_dataset.ipynb
 │   ├── 02_eda_analysis.ipynb
 │   ├── 03_filter_dataset.ipynb
@@ -382,7 +419,14 @@ financial-complaints-rag-chatbot/
 │   ├── 06_text_chunking_experiment.ipynb # Text chunking experimentation
 │   ├── 07_embedding_generation.ipynb     # Embedding generation
 │   ├── 08_vectorstore_creation.ipynb     # Task 2: Vector store creation
+│   ├── 09_rag_evaluation.ipynb          # Task 3: RAG evaluation
 │   └── README.md
+├── report_visualizations/         # EDA and analysis visualizations
+│   ├── 01_product_distribution.png
+│   ├── 02_narrative_length_distribution.png
+│   ├── 03_narrative_length_by_product.png
+│   ├── 04_stratified_sampling_representation.png
+│   └── 05_chunking_statistics.png
 ├── src/                           # Source code
 │   ├── data/                      # Data processing modules
 │   │   ├── __init__.py
@@ -395,16 +439,31 @@ financial-complaints-rag-chatbot/
 │   │   ├── __init__.py
 │   │   ├── chunker.py             # TextChunker class
 │   │   ├── embedder.py            # EmbeddingGenerator class
-│   │   └── vectorstore.py         # VectorStore class (ChromaDB)
+│   │   ├── vectorstore.py         # VectorStore class (ChromaDB)
+│   │   ├── retriever.py           # Retriever class
+│   │   ├── generator.py           # Generator class
+│   │   ├── prompts.py             # Prompt templates
+│   │   ├── pipeline.py            # RAGPipeline class
+│   │   └── evaluator.py           # RAGEvaluator class
 │   ├── utils/                     # Utility modules
 │   │   ├── __init__.py
-│   │   └── logger.py              # Logging utilities
+│   │   ├── logger.py              # Logging utilities
+│   │   ├── data_loader_utils.py   # Data loading utilities
+│   │   └── notebook_setup.py      # Notebook setup utilities
 │   ├── config.py                  # Configuration management
 │   ├── exceptions.py              # Custom exception classes
+│   ├── pipeline.py                # Complete pipeline script
 │   └── __init__.py
 ├── tests/                         # Unit tests
 │   └── __init__.py
-├── app.py                         # Main application entry point
+├── logs/                          # Application logs
+│   └── app.log
+├── app.py                         # Main application entry point (Gradio interface)
+├── run_app.sh                     # Application launcher script
+├── populate_vectorstore.py        # Vector store population script
+├── optimize_data_loading.py       # Data loading optimization script
+├── generate_report_visualizations.py  # Report visualization generator
+├── TASK_1_2_REPORT.md             # Task 1 & 2 evaluation report
 ├── requirements.txt               # Python dependencies
 ├── .gitignore                     # Git ignore rules
 ├── .env.example                   # Example environment variables
@@ -496,12 +555,21 @@ The project follows PEP 8 style guidelines. Consider using:
 - [x] Evaluation framework with qualitative assessment
 - [x] Evaluation report generation
 
+### ✅ Completed (Task 4)
+- [x] Gradio web interface with modern UI
+- [x] Streaming response generation for better UX
+- [x] Source document citation and display
+- [x] Example questions and user guidance
+- [x] Comprehensive error handling
+- [x] Application launcher script (run_app.sh)
+- [x] Custom styling and professional appearance
+
 ### 📅 Planned
-- [ ] Application development with Gradio interface (Task 4)
 - [ ] Performance optimization and evaluation
-- [ ] Deployment configuration
-- [ ] API endpoint development
+- [ ] Deployment configuration (Docker, cloud deployment)
+- [ ] API endpoint development (REST API)
 - [ ] Model fine-tuning capabilities
+- [ ] Advanced analytics and monitoring dashboard
 
 ## 🤝 Contributing
 
