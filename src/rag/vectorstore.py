@@ -10,11 +10,17 @@ import numpy as np
 from typing import List, Dict, Any, Optional, Union
 from pathlib import Path
 import warnings
+import os
+
+# Suppress ChromaDB telemetry warnings
+os.environ.setdefault('ANONYMIZED_TELEMETRY', 'False')
 
 try:
     import chromadb
     from chromadb.config import Settings
     CHROMADB_AVAILABLE = True
+    # Suppress telemetry warnings
+    warnings.filterwarnings('ignore', message='.*telemetry.*')
 except ImportError:
     CHROMADB_AVAILABLE = False
     chromadb = None

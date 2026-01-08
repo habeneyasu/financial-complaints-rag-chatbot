@@ -246,6 +246,33 @@ analyzer.plot_product_distribution()
 analyzer.plot_narrative_length_distribution()
 ```
 
+#### RAG Pipeline Usage
+
+```python
+from src.rag.pipeline import RAGPipeline
+from src.rag.evaluator import RAGEvaluator
+
+# Initialize RAG pipeline from vector store
+rag_pipeline = RAGPipeline.from_vector_store_path(
+    vector_store_path="vector_store",
+    collection_name="financial_complaints",
+    embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+    llm_model="google/flan-t5-base",
+    top_k=5
+)
+
+# Answer a question
+result = rag_pipeline.answer("What are the most common issues with credit cards?")
+print(result['answer'])
+print(result['sources'])  # Top retrieved sources
+
+# Run evaluation
+evaluator = RAGEvaluator(rag_pipeline)
+questions = [{"question": "What are common credit card issues?"}]
+results = evaluator.evaluate_questions(questions)
+eval_table = evaluator.create_evaluation_table(results)
+```
+
 ### Running Jupyter Notebooks
 
 The project includes sequential notebooks for data exploration and processing:
@@ -267,6 +294,7 @@ jupyter lab
 6. `06_text_chunking_experiment.ipynb` - Text chunking strategy experimentation and optimization
 7. `07_embedding_generation.ipynb` - Embedding generation using sentence-transformers
 8. `08_vectorstore_creation.ipynb` - Vector store creation and indexing (Task 2)
+9. `09_rag_evaluation.ipynb` - **Task 3 RAG pipeline evaluation** (retrieval + generation + qualitative assessment)
 
 ## 📋 Tasks Overview
 
@@ -308,13 +336,21 @@ jupyter lab
   - ✅ Metadata storage enabling full traceability to source complaints
   - ✅ Fully reproducible pipeline for reliable vector store creation
 
-### Task 3: RAG Pipeline Implementation (Upcoming)
-- **Objective**: Build the complete Retrieval-Augmented Generation pipeline
+### Task 3: RAG Pipeline Implementation and Evaluation ✅
+- **Objective**: Build the complete Retrieval-Augmented Generation pipeline and evaluate its effectiveness
 - **Key Components**:
-  - Implement retrieval component for semantic search
-  - Integrate with Large Language Model (LLM)
-  - Build query processing and response generation
-  - Implement context management and prompt engineering
+  - **Retriever**: Embeds questions using all-MiniLM-L6-v2 and performs similarity search (top-k=5)
+  - **Prompt Engineering**: Robust template instructing LLM to act as financial analyst, use only context
+  - **Generator**: LLM-based answer generation using Hugging Face transformers (flan-t5-base)
+  - **Evaluation**: Qualitative assessment with 10 representative questions and quality scoring
+- **Modules**: `src/rag/retriever.py`, `src/rag/prompts.py`, `src/rag/generator.py`, `src/rag/pipeline.py`, `src/rag/evaluator.py`
+- **Notebook**: `09_rag_evaluation.ipynb` - Complete evaluation workflow
+- **Deliverables**:
+  - ✅ RAG pipeline with retriever and generator
+  - ✅ Prompt template for context-based answering
+  - ✅ Evaluation framework with 10 representative questions
+  - ✅ Evaluation table with quality scores and analysis
+  - ✅ Markdown evaluation report documenting results
 
 ### Task 4: Application Development (Upcoming)
 - **Objective**: Create user-friendly interface and deploy the system
@@ -452,10 +488,15 @@ The project follows PEP 8 style guidelines. Consider using:
 - [x] Vector store creation and persistence (ChromaDB)
 - [x] Vector indexing and metadata management
 
+### ✅ Completed (Task 3)
+- [x] RAG pipeline implementation with retriever and generator
+- [x] Retrieval component with question embedding and similarity search
+- [x] LLM integration using Hugging Face transformers
+- [x] Prompt engineering with robust templates
+- [x] Evaluation framework with qualitative assessment
+- [x] Evaluation report generation
+
 ### 📅 Planned
-- [ ] RAG pipeline implementation (Task 3)
-- [ ] Retrieval component development
-- [ ] LLM integration and prompt engineering
 - [ ] Application development with Gradio interface (Task 4)
 - [ ] Performance optimization and evaluation
 - [ ] Deployment configuration
